@@ -1,0 +1,2 @@
+# Lumina Bank
+Lumina Bank is Lumina's central bank, investment bank, and retail/commercial bank. It will be a 100% digital platform enabling citizens and businesses across Lumina to manage all of their affairs.
