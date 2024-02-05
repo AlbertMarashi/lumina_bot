@@ -1,4 +1,7 @@
-mod pinecone_lib;
+pub mod pinecone_lib;
+pub mod broadcast;
+pub mod messages;
+
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
@@ -6,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 mod utils;
 
+use messages::{send_lumina_univeristy_message, send_siteforge_launch_message};
 use openai::chat::{ChatCompletionMessageRole, ChatCompletionMessage};
 use openai::set_key;
 use pinecone_lib::VectorQueryMatch;
@@ -26,9 +30,13 @@ use tokio::io::AsyncReadExt;
 
 const BOT_ID: u64 = 900184529623474237;
 const BOT_USER_ID: u64 = 1014851190472835082;
-const MODEL: &'static str = "gpt-3.5-turbo";
+const MODEL: &'static str = "gpt-3.5-turbo-0613";
+const MODERATOR_CHANNEL_ID: u64 = 768961135608987678;
 
 async fn start_running(http: Arc<Http>) -> Result<(), anyhow::Error>{
+    // send_lumina_univeristy_message(&http).await?;
+    send_siteforge_launch_message(&http).await?;
+
     Ok(())
 }
 
@@ -161,6 +169,25 @@ impl EventHandler for Handler {
         if msg.author.bot {
             return; // ignore messages from bots
         }
+
+        // if the message is a private message, send to moderators channel
+        if msg.is_private() {
+            let moderator_channel = ChannelId::from(MODERATOR_CHANNEL_ID).to_channel(&ctx.http).await.unwrap().guild().unwrap();
+
+            let message = moderator_channel
+                .send_message(&ctx.http, |m| {
+                    m.content(format!("Bot DM from **{}**:\n\n{}", msg.author.name, msg.content))
+                })
+                .await;
+
+            match message {
+                Ok(_) => println!("Message sent to moderator channel"),
+                Err(e) => println!("Error sending message to moderator channel: {}", e),
+            }
+
+            return;
+        }
+
 
         // ignore messages that don't mention the bot
         if !msg.mentions_user_id(BOT_USER_ID) {
@@ -338,3 +365,4 @@ async fn get_file_contents(path: &Path) -> String {
     file.read_to_string(&mut contents).await.unwrap();
     contents
 }
+
